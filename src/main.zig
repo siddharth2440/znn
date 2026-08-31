@@ -2,7 +2,7 @@ const std = @import("std");
 const Io = std.Io;
 
 const nn = @import("nn");
-const Matrix = nn.Matrix;
+const Matrix = @import("matrix.zig").Matrix;
 
 pub fn main(init: std.process.Init) !void {
     // try nn.perceptron();
