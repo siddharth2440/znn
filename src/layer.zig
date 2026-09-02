@@ -16,6 +16,8 @@ pub const Layer = struct {
         var weights = try Matrix.init(input_size, output_size, allocator);
         weights.fill_random_values(io);
 
+        std.debug.print("\nweights: {any}\n", .{weights.data});
+
         var biases = try Matrix.init(1, output_size, allocator);
         biases.fill(0.0);
 
@@ -33,6 +35,8 @@ pub const Layer = struct {
         var multiplication_result = try self.weights.matrix_multiplication(input) orelse return error.MatrixMultiplicationError;
         var output = try multiplication_result.matrix_addition(&self.biases) orelse return error.MatrixAdditionError;
         output.apply_activation_function(.relu);
+
+        std.debug.print("Outputs: {any}", .{output.data});
 
         return output;
     }
