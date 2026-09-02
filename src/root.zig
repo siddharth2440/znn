@@ -1,5 +1,6 @@
 const std = @import("std");
 const Io = std.Io;
+const Matrix = @import("matrix.zig").Matrix;
 
 pub fn perceptron() !void {
     const x1: u32 = 2;

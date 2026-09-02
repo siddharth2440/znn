@@ -1,13 +1,13 @@
 const std = @import("std");
 
 pub const Matrix = struct {
-    rows: u32,
-    cols: u32,
-    data: []u32,
+    rows: usize,
+    cols: usize,
+    data: []f32,
     allocator: std.mem.Allocator,
 
-    pub fn init(cols: u32, rows: u32, allocator: std.mem.Allocator) !Matrix {
-        const data = try allocator.alloc(u32, rows * cols);
+    pub fn init(cols: usize, rows: usize, allocator: std.mem.Allocator) !Matrix {
+        const data = try allocator.alloc(f32, rows * cols);
 
         return .{
             .cols = cols,
@@ -17,30 +17,43 @@ pub const Matrix = struct {
         };
     }
 
-    pub inline fn get_value(self: *Matrix, row: u32, col: u32) u32 {
+    pub inline fn get_value(self: *Matrix, row: usize, col: usize) f32 {
         return self.data[(self.cols * row) + col];
     }
 
-    pub inline fn set_value(self: *Matrix, row: u32, col: u32, value: u32) void {
+    pub inline fn set_value(self: *Matrix, row: usize, col: usize, value: f32) void {
         self.data[(self.cols * row) + col] = value;
     }
 
-    pub fn multiply_by(self: *Matrix, num: u32) void {
+    pub fn multiply_by(self: *Matrix, num: usize) void {
         for (self.data) |*value| {
             value.* *= num;
         }
     }
 
-    pub fn zero_matrix(rows: u32, cols: u32, allocator: std.mem.Allocator) !void {
+    pub fn zero_matrix(rows: usize, cols: usize, allocator: std.mem.Allocator) !void {
         const z_mat = try Matrix.init(cols, rows, allocator);
-        @memset(z_mat.data, 0);
+        @memset(z_mat.data, 0.0);
     }
 
-    pub fn identity_matrix(size: u32, allocator: std.mem.Allocator) !Matrix {
+    pub fn fill(self: *Matrix, val: f32) void {
+        @memset(self.data, val);
+    }
+
+    pub fn fill_random_values(self: *Matrix, io: std.Io) void {
+        const rng_impl = std.Random.IoSource{ .io = io };
+        var random = rng_impl.interface();
+
+        for (self.data) |*data| {
+            data.* = random.float(f32);
+        }
+    }
+
+    pub fn identity_matrix(size: usize, allocator: std.mem.Allocator) !Matrix {
         var i_mat = try Matrix.init(size, size, allocator);
         @memset(i_mat.data, 0);
 
-        var i: u32 = 0;
+        var i: usize = 0;
         while (i < size) : (i += 1) {
             i_mat.set_value(i, i, 1);
         }
@@ -51,9 +64,9 @@ pub const Matrix = struct {
     pub fn matrix_transpose(self: *Matrix) !Matrix {
         var transpose_matrix = try Matrix.init(self.rows, self.cols, self.allocator);
 
-        var row: u32 = 0;
+        var row: usize = 0;
         while (row < self.rows) : (row += 1) {
-            var col: u32 = 0;
+            var col: usize = 0;
             while (col < self.cols) : (col += 1) {
                 const val = self.get_value(row, col);
                 transpose_matrix.set_value(col, row, val);
@@ -67,9 +80,9 @@ pub const Matrix = struct {
         if (self.rows == with.rows and self.cols == with.cols) {
             var result_matrix = try Matrix.init(self.cols, self.rows, self.allocator);
 
-            var row: u32 = 0;
+            var row: usize = 0;
             while (row < self.rows) : (row += 1) {
-                var col: u32 = 0;
+                var col: usize = 0;
                 while (col < self.cols) : (col += 1) {
                     const addtn_result = self.get_value(row, col) + with.get_value(row, col);
 
@@ -89,11 +102,11 @@ pub const Matrix = struct {
             var resultant_matrix = try Matrix.init(with.cols, self.rows, self.allocator);
             @memset(resultant_matrix.data, 0);
 
-            var row: u32 = 0;
+            var row: usize = 0;
             while (row < self.rows) : (row += 1) {
-                var col: u32 = 0;
+                var col: usize = 0;
                 while (col < with.cols) : (col += 1) {
-                    var size: u32 = 0;
+                    var size: usize = 0;
                     while (size < self.cols) : (size += 1) {
                         const cur_val = self.get_value(row, size);
                         const other_matrix_val = with.get_value(size, col);
@@ -111,9 +124,9 @@ pub const Matrix = struct {
     }
 
     pub fn print_matrix(self: *Matrix) void {
-        var row: u32 = 0;
+        var row: usize = 0;
         while (row < self.rows) : (row += 1) {
-            var col: u32 = 0;
+            var col: usize = 0;
             while (col < self.cols) : (col += 1) {
                 const val = self.get_value(row, col);
                 std.debug.print("{d} \t", .{val});
@@ -122,4 +135,49 @@ pub const Matrix = struct {
             std.debug.print("\n", .{});
         }
     }
+
+    pub fn apply_activation_function(self: *Matrix, activation: ActivationType) void {
+        for (self.data) |*val| {
+            val.* = apply(activation, val.*);
+        }
+    }
 };
+
+// ----------------------   Activation Functions    ----------------------
+pub const ActivationType = enum {
+    none,
+
+    relu,
+    leaky_relu,
+
+    sigmoid, // Used for Binary Classification Output.
+    tanh,
+
+    softmax,
+};
+
+pub fn apply(atype: ActivationType, data: f32) f32 {
+    switch (atype) {
+        .none => {
+            return data;
+        },
+        .relu => {
+            return @max(0.0, data);
+        },
+        .leaky_relu => {
+            const alpha: f32 = 0.01;
+            return if (data > 0) {
+                return data;
+            } else {
+                return alpha * data;
+            };
+        },
+        .sigmoid => {
+            return 1.0 / 1.0 + std.math.exp(-data);
+        },
+        .tanh => {
+            return std.math.tanh(data);
+        },
+        .softmax => unreachable,
+    }
+}
