@@ -31,13 +31,34 @@ pub const Layer = struct {
         };
     }
 
-    pub fn forward_pass(self: *Layer, input: *Matrix) !Matrix {
+    pub fn forward_pass(self: *Layer, input: *Matrix) !ForwardResult {
+
+        // z1 = w * ip
         var multiplication_result = try self.weights.matrix_multiplication(input) orelse return error.MatrixMultiplicationError;
-        var output = try multiplication_result.matrix_addition(&self.biases) orelse return error.MatrixAdditionError;
-        output.apply_activation_function(.relu);
+
+        // z = z1 + b
+        const output = try multiplication_result.matrix_addition(&self.biases) orelse return error.MatrixAdditionError;
+
+        // A = activation(z)
+        var activations = try Matrix.init(output.cols, output.rows, self.allocator);
+        for (output.data, activations.data) |z_value, *activation_val| {
+            activation_val.* = z_value;
+        }
+
+        activations.apply_activation_function(.relu);
+
+        // output.apply_activation_function(.relu);
 
         std.debug.print("Outputs: {any}", .{output.data});
 
-        return output;
+        return .{
+            .activations = activations,
+            .z_values = output,
+        };
     }
+};
+
+pub const ForwardResult = struct {
+    activations: Matrix,
+    z_values: Matrix,
 };

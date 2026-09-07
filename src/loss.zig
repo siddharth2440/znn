@@ -1,3 +1,4 @@
+const std = @import("std");
 const matrix = @import("matrix.zig");
 
 pub const LossFunction = enum {
@@ -25,4 +26,21 @@ pub fn calculate_loss_func(pred: *const matrix.Matrix, target: *const matrix.Mat
     return switch (loss) {
         .mse => try mse(pred, target),
     };
+}
+
+pub fn derivative(prediction: *const matrix.Matrix, target: *const matrix.Matrix, allocator: std.mem.Allocator) !void {
+    if (prediction.cols != target.cols or target.rows != prediction.rows) {
+        return error.InvliadMatrixDimensions;
+    }
+
+    var gradient = try matrix.Matrix.init(prediction.cols, prediction.rows, allocator);
+    try gradient.fill(0);
+
+    const n: f32 = @floatFromInt(prediction.data.len);
+
+    for (prediction.data, target.data, gradient.data) |prediction_val, target_val, *gradient_val| {
+        gradient_val.* = (2.0 / n) * (prediction_val - target_val);
+    }
+
+    return gradient;
 }

@@ -1,6 +1,7 @@
 const std = @import("std");
 const Layer = @import("layer.zig").Layer;
 const Matrix = @import("matrix.zig").Matrix;
+const FowardResult = @import("layer.zig").ForwardResult;
 
 pub const NeuralNetwork = struct {
     allocator: std.mem.Allocator,
@@ -26,14 +27,24 @@ pub const NeuralNetwork = struct {
         };
     }
 
-    pub fn forward(self: *NeuralNetwork, input: *Matrix) !Matrix {
+    pub fn forward(self: *NeuralNetwork, input: *Matrix) !FowardResult {
         var current = input;
 
-        for (self.layers) |*layer| {
-            var output = try layer.forward_pass(current);
-            current = &output;
+        const activations = try self.allocator.alloc(Matrix, self.layers.len + 1);
+        const z_values = try self.allocator.alloc(Matrix, self.layers.len);
+
+        activations[0] = input.*;
+
+        for (self.layers, 0..) |*layer, id| {
+            const forward_pass_result = try layer.forward_pass(current);
+            z_values[id] = forward_pass_result.z_values;
+            activations[id + 1] = forward_pass_result.activations;
+            current = &activations[id + 1];
         }
 
-        return current.*;
+        return .{
+            .activations = activations,
+            .z_values = z_values,
+        };
     }
 };

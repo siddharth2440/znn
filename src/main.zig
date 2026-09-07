@@ -24,10 +24,15 @@ pub fn main(init: std.process.Init) !void {
     //      Second layer has 4 neurons
     //      Output layer has 1 neuron
     var neural_network = try nn.init(allocator, io, &[_]usize{ 2, 3, 4, 1 });
-    const output_matrix = try neural_network.forward(&input);
+    const forward_result = try neural_network.forward(&input);
 
-    std.debug.print("\n-- {any} --\n", .{output_matrix.data});
+    std.debug.print("\n-- {any} --\n", .{forward_result.activations});
+    std.debug.print("\n-- {any} --\n", .{forward_result.z_values});
 
-    const loss = try Loss.calculate_loss_func(&output_matrix, &target, .mse);
+    const loss = try Loss.calculate_loss_func(
+        &forward_result.activations,
+        &target,
+        .mse,
+    );
     std.debug.print("\n-- Loss: {any} --\n", .{loss});
 }
