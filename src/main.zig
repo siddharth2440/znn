@@ -24,15 +24,31 @@ pub fn main(init: std.process.Init) !void {
     //      Second layer has 4 neurons
     //      Output layer has 1 neuron
     var neural_network = try nn.init(allocator, io, &[_]usize{ 2, 3, 4, 1 });
-    const forward_result = try neural_network.forward(&input);
 
-    std.debug.print("\n-- {any} --\n", .{forward_result.activations});
-    std.debug.print("\n-- {any} --\n", .{forward_result.z_values});
+    const learning_rate: f32 = 0.003;
+    const epochs: usize = 5;
 
-    const loss = try Loss.calculate_loss_func(
-        &forward_result.activations,
-        &target,
-        .mse,
-    );
-    std.debug.print("\n-- Loss: {any} --\n", .{loss});
+    // --- Forward pass before training ---
+    const before = try neural_network.forward(&input);
+    const loss_before = try Loss.calculate_loss_func(&before.activations[before.activations.len - 1], &target, .mse);
+    std.debug.print("\nPrediction before training : {any}", .{before.activations[before.activations.len - 1].data});
+    std.debug.print("\nLoss before training       : {any}", .{loss_before});
+
+    // --- Train: repeat forward + backward, updating all weights each step ---
+    var prev_prediction: f32 = before.activations[before.activations.len - 1].get_value(0, 0);
+    for (0..epochs) |epoch| {
+        _ = try neural_network.backward(&input, &target, learning_rate);
+
+        const curr = try neural_network.forward(&input);
+        const loss = try Loss.calculate_loss_func(&curr.activations[curr.activations.len - 1], &target, .mse);
+        const prediction = curr.activations[curr.activations.len - 1].get_value(0, 0);
+
+        std.debug.print("\nepoch {} -> prediction: {d}, loss: {d}", .{ epoch + 1, prediction, loss });
+        prev_prediction = prediction;
+    }
+
+    const after = try neural_network.forward(&input);
+    const loss_after = try Loss.calculate_loss_func(&after.activations[after.activations.len - 1], &target, .mse);
+    std.debug.print("\nLoss decreased             : {any}", .{loss_after < loss_before});
+    std.debug.print("\nLoss decreased by          : {any} {any}", .{ loss_after, loss_before });
 }
